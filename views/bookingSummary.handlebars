@@ -1,0 +1,32 @@
+<html>
+  <head>
+    <title>Booking Summary</title>
+    <style>
+      body { font-family: Arial, sans-serif; margin: 0; padding: 0; } .summary {
+      max-width: 600px; margin: 0 auto; border: 1px solid #ddd; padding: 20px;
+      border-radius: 5px; } .passenger-list { margin-top: 20px; }
+      .passenger-item { padding: 10px; border-bottom: 1px solid #ddd; }
+    </style>
+  </head>
+  <body>
+    <div class="summary">
+      <h2>Your Booking Summary</h2>
+      <p>Booking ID: {{bookingId}}</p>
+      <p>Total Amount: ₦{{totalAmount}}</p>
+
+      <div class="passenger-list">
+        <h3>Passengers</h3>
+        {{#each passengers}}
+          <div class="passenger-item">
+            <p><strong>Name:</strong> {{name}}</p>
+            <p><strong>Seat:</strong> {{seat}}</p>
+            <p><strong>Type:</strong> {{type}}</p>
+          </div>
+        {{/each}}
+      </div>
+
+      <p>Contact Email: {{contactEmail}}</p>
+      <p>Contact Phone: {{contactPhone}}</p>
+    </div>
+  </body>
+</html>
