@@ -79,29 +79,7 @@ exports.loginUser = async (req, res) => {
         .status(401)
         .json({ success: false, message: "Invalid credentials" });
     }
-
-    // Generate JWT token
-    const token = user.getSignedJwtToken();
-
-    // Set token as HTTP-only cookie
-    res.cookie("token", token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "strict",
-      maxAge: 1000 * 60 * 60 * 24, // 24 hours
-    });
-
-    // Send response
-    res.status(200).json({
-      success: true,
-      token,
-      user: {
-        id: user._id,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        email: user.email,
-      },
-    });
+    sendTokenResponse(user, 200, res);
   } catch (error) {
     res.status(500).json({
       success: false,

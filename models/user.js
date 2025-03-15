@@ -1,25 +1,55 @@
-const mongoose = require("mongoose");
 const crypto = require("crypto");
-const jwt = require("jsonwebtoken");
+const mongoose = require("mongoose");
 const bcrypt = require("bcryptjs");
+const jwt = require("jsonwebtoken");
 
-const UserSchema = new mongoose.Schema(
+const UserSchema = mongoose.Schema(
   {
     firstName: {
       type: String,
-      required: [true, "Please add a first name"],
+      required: [true, "Please add your first name"],
+      maxLength: [50, "First name cannot be more than 50 characters"],
       trim: true,
-      maxlength: [30, "First name cannot be more than 30 characters"],
     },
     lastName: {
       type: String,
-      required: [true, "Please add a last name"],
+      required: [true, "Please add your last name"],
+      maxLength: [50, "Last name cannot be more than 50 characters"],
       trim: true,
-      maxlength: [30, "Last name cannot be more than 30 characters"],
+    },
+    phoneNumber: {
+      type: String,
+      required: [true, "Please provide a phone Number"],
+      match: [/^\d{10,15}$/, "Please enter a valid phone number"],
+      unique: true,
+    },
+    dateOfBirth: {
+      type: Date,
+      required: [true, "Please select your date of birth"],
+    },
+    gender: {
+      type: String,
+      enum: ["Male", "Female"],
+      required: [true, "Please select your gender"],
+    },
+    identificationType: {
+      type: String,
+      enum: [
+        "NIN",
+        "Driver's License",
+        "International Passport",
+        "National ID",
+      ],
+      required: [true, "Please select an identification type"],
+    },
+    idNumber: {
+      type: String,
+      required: [true, "Please enter your ID number"],
+      match: [/^\d{11}$/, "ID number must be 11 digits"],
     },
     email: {
       type: String,
-      required: [true, "Please add an email"],
+      required: [true, "Please provide an email"],
       unique: true,
       match: [
         /^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/,
@@ -29,51 +59,23 @@ const UserSchema = new mongoose.Schema(
     password: {
       type: String,
       required: [true, "Please add a password"],
-      minlength: 6,
+      minLength: 8,
+      match: [
+        /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/,
+        "Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character",
+      ],
       select: false,
-    },
-    phoneNumber: {
-      type: String,
-      required: [true, "Please add a phone number"],
-      unique: true,
-    },
-    dateOfBirth: {
-      type: Date,
-      required: [true, "Please add date of birth"],
-    },
-    gender: {
-      type: String,
-      enum: ["male", "female", "other"],
-      required: [true, "Please add gender"],
-    },
-    identificationType: {
-      type: String,
-      enum: ["national_id", "passport", "driver_license"],
-      required: [true, "Please add identification type"],
-    },
-    idNumber: {
-      type: String,
-      required: [true, "Please add identification number"],
-    },
-    role: {
-      type: String,
-      enum: ["user", "admin"],
-      default: "user",
     },
     resetPasswordToken: String,
     resetPasswordExpire: Date,
-    createdAt: {
-      type: Date,
-      default: Date.now,
-    },
   },
   {
-    toJSON: { virtuals: true },
-    toObject: { virtuals: true },
+    timestamps: true,
   }
 );
 
-// Hash password before saving
+//Encrypt password before saving
+
 UserSchema.pre("save", async function (next) {
   if (!this.isModified("password")) {
     next();
@@ -83,31 +85,32 @@ UserSchema.pre("save", async function (next) {
   this.password = await bcrypt.hash(this.password, salt);
 });
 
-// Match user entered password to hashed password in database
+// Match Password with one saved in database
 UserSchema.methods.matchPassword = async function (enteredPassword) {
   return await bcrypt.compare(enteredPassword, this.password);
 };
 
-// Sign JWT and return
+// Generate JWT token
 UserSchema.methods.getSignedJwtToken = function () {
   return jwt.sign({ id: this._id }, process.env.JWT_SECRET, {
-    expiresIn: process.env.JWT_EXPIRES_IN,
+    expiresIn: process.env.JWT_EXPIRE,
   });
 };
 
-// Generate and hash password token
+//Generate and hash password reset token
 UserSchema.methods.getResetPasswordToken = function () {
-  // Generate token
+  //Generate Token
   const resetToken = crypto.randomBytes(20).toString("hex");
 
-  // Hash token and save to database
+  //Hash token and store in resetPasswordToken field
+
   this.resetPasswordToken = crypto
     .createHash("sha256")
     .update(resetToken)
     .digest("hex");
 
-  // Set token expire
-  this.resetPasswordExpire = Date.now() + 10 * 60 * 1000; // 10 minutes
+  //Set token expiration time (10 minutes)
+  this.resetPasswordExpire = Date.now() + 10 * 60 * 1000;
 
   return resetToken;
 };
