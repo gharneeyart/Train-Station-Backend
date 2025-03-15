@@ -23,10 +23,17 @@ const ticketRouter = require("./routes/ticketRoutes");
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+// CORS Configuration
+const corsOptions = {
+  origin: process.env.FRONTEND_URL || "http://localhost:5173",
+  credentials: true,
+  optionsSuccessStatus: 200,
+};
+
 // Middleware
 app.use(express.json());
-app.use(cors());
-app.use(cookieParser());
+app.use(cors(corsOptions));
+app.use(cookieParser(process.env.COOKIE_SECRET));
 app.use(express.static(path.join(__dirname, "public")));
 app.set("view engine", "handlebars");
 app.set("views", path.join(__dirname, "views"));
@@ -34,9 +41,11 @@ app.set("views", path.join(__dirname, "views"));
 // Authentication middleware
 const verifyToken = async (req, res, next) => {
   const token = req.cookies.token;
-  
+
   if (!token) {
-    return res.status(401).json({ success: false, message: 'Not authenticated' });
+    return res
+      .status(401)
+      .json({ success: false, message: "Not authenticated" });
   }
 
   try {
@@ -44,7 +53,7 @@ const verifyToken = async (req, res, next) => {
     req.user = decoded;
     next();
   } catch (error) {
-    return res.status(401).json({ success: false, message: 'Invalid token' });
+    return res.status(401).json({ success: false, message: "Invalid token" });
   }
 };
 
@@ -59,19 +68,21 @@ app.get("/api/v1/auth/me", verifyToken, async (req, res) => {
   try {
     const user = await User.findById(req.user.id).select("-password");
     if (!user) {
-      return res.status(404).json({ success: false, message: 'User not found' });
+      return res
+        .status(404)
+        .json({ success: false, message: "User not found" });
     }
-    res.json({ 
-      success: true, 
+    res.json({
+      success: true,
       user: {
         id: user._id,
         firstName: user.firstName,
         lastName: user.lastName,
-        email: user.email
-      } 
+        email: user.email,
+      },
     });
   } catch (error) {
-    res.status(500).json({ success: false, message: 'Server error' });
+    res.status(500).json({ success: false, message: "Server error" });
   }
 });
 
