@@ -1,5 +1,3 @@
-const express = require("express");
-const router = express.Router();
 const User = require("../models/user");
 const crypto = require("crypto");
 const bcrypt = require("bcryptjs");
@@ -8,7 +6,7 @@ const sendTokenResponse = require("../utils/sendTokenResponse");
 // @desc    Register User
 // @route   POST /api/v1/auth/register
 // @access  Public
-router.post("/register", async (req, res, next) => {
+exports.registerUser = async (req, res, next) => {
   try {
     const {
       firstName,
@@ -61,12 +59,12 @@ router.post("/register", async (req, res, next) => {
       error: error.message,
     });
   }
-});
+};
 
 // @desc    Login User
 // @route   POST /api/v1/auth/login
 // @access  Public
-router.post("/login", async (req, res) => {
+exports.loginUser = async (req, res) => {
   try {
     const { email, password } = req.body;
     if (!email || !password) {
@@ -89,7 +87,7 @@ router.post("/login", async (req, res) => {
     res.cookie("token", token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
-      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+      sameSite: "strict",
       maxAge: 1000 * 60 * 60 * 24, // 24 hours
     });
 
@@ -111,12 +109,13 @@ router.post("/login", async (req, res) => {
       error: error.message,
     });
   }
-});
+};
 
 // @desc Get Logged-In User Profile
 // @route GET /api/v1/auth/user
 // @access Private
-router.get("/user", async (req, res) => {
+
+exports.getUserProfile = async (req, res) => {
   try {
     const user = await User.findById(req.user.id).select("-password");
     if (!user) {
@@ -131,12 +130,13 @@ router.get("/user", async (req, res) => {
       .status(500)
       .json({ success: false, message: "Server Error", error: error.message });
   }
-});
+};
 
 // @desc Update user profile
 // @route PUT /api/v1/auth/update-profile
 // @access Private
-router.put("/update-profile", async (req, res) => {
+
+exports.updateUserProfile = async (req, res) => {
   try {
     const updates = req.body;
 
@@ -158,12 +158,13 @@ router.put("/update-profile", async (req, res) => {
       .status(500)
       .json({ success: false, message: "Server Error", error: error.message });
   }
-});
+};
 
 // @desc Forgot Password (Generate reset token)
 // @route POST /api/v1/auth/forgot-password
 // @access Public
-router.post("/forgot-password", async (req, res) => {
+
+exports.forgotPassword = async (req, res) => {
   try {
     const user = await User.findOne({ email: req.body.email });
 
@@ -173,11 +174,11 @@ router.post("/forgot-password", async (req, res) => {
         .json({ success: false, message: "User Not Found" });
     }
 
-    // Get reset token
+    //Get reset token
     const resetToken = user.getResetPasswordToken();
     await user.save({ validateBeforeSave: false });
 
-    // Create reset URL (Later Will Replace with Frontend URL)
+    //Create reset URL (Later Will Repalce with Frontend URL)
     const resetUrl = `${req.protocol}://${req.get(
       "host"
     )}/api/v1/auth/reset-password/${resetToken}`;
@@ -192,32 +193,27 @@ router.post("/forgot-password", async (req, res) => {
       .status(500)
       .json({ success: false, message: "Server Error", error: error.message });
   }
-});
+};
 
 // @desc Reset Password
-// @route PUT /api/v1/auth/reset-password/:resetToken
+// @route PUT /api/v1/auth/reset-password/resetToken
 // @access Public
-router.put("/reset-password/:resetToken", async (req, res) => {
+
+exports.resetPassword = async (req, res) => {
   try {
-    // Hash token
+    //Hash token
     const resetPasswordToken = crypto
       .createHash("sha256")
       .update(req.params.resetToken)
       .digest("hex");
 
-    // Find user by reset token and check if token is not expired
+    //Find user by reset token and check if token is not expired
     const user = await User.findOne({
       resetPasswordToken,
       resetPasswordExpire: { $gt: Date.now() },
     });
 
-    if (!user) {
-      return res
-        .status(400)
-        .json({ success: false, message: "Invalid reset token" });
-    }
-
-    // Set new password
+    //Set new password
     user.password = req.body.password;
     user.resetPasswordToken = undefined;
     user.resetPasswordExpire = undefined;
@@ -234,12 +230,13 @@ router.put("/reset-password/:resetToken", async (req, res) => {
       error: error.message,
     });
   }
-});
+};
 
 // @desc Update Password while logged in
 // @route PUT /api/v1/auth/update-password
 // @access Private
-router.put("/update-password", async (req, res) => {
+
+exports.updatePassword = async (req, res) => {
   try {
     const user = await User.findById(req.user.id).select("+password");
 
@@ -249,7 +246,7 @@ router.put("/update-password", async (req, res) => {
         .json({ success: false, message: "Incorrect Current Password" });
     }
 
-    // Update Password
+    //Update Password
     user.password = req.body.newPassword;
     await user.save();
 
@@ -261,14 +258,15 @@ router.put("/update-password", async (req, res) => {
       .status(500)
       .json({ success: false, message: "Server Error", error: error.message });
   }
-});
+};
 
 // @desc Get all users
 // @route GET /api/v1/auth/users
 // @access Private (Admin Only)
-router.get("/users", async (req, res) => {
+
+exports.getAllUsers = async (req, res) => {
   try {
-    // Fetch all users, excluding passwords
+    //Fetch all users, excluding passwords
     const users = await User.find().select("-password");
 
     res.status(200).json({
@@ -281,17 +279,15 @@ router.get("/users", async (req, res) => {
       .status(500)
       .json({ success: false, message: "Server Error", error: error.message });
   }
-});
+};
 
 // @desc    Logout User
 // @route   POST /api/v1/auth/logout
 // @access  Private
-router.post("/logout", async (req, res) => {
+exports.logoutUser = async (req, res) => {
   res.cookie("token", "", {
     httpOnly: true,
     expires: new Date(0),
   });
   res.status(200).json({ success: true, message: "Logged out successfully" });
-});
-
-module.exports = router;
+};
