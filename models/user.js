@@ -34,7 +34,12 @@ const UserSchema = mongoose.Schema(
     },
     identificationType: {
       type: String,
-      enum: ["BVN", "NIN"],
+      enum: [
+        "NIN",
+        "Driver's License",
+        "International Passport",
+        "National ID",
+      ],
       required: [true, "Please select an identification type"],
     },
     idNumber: {
