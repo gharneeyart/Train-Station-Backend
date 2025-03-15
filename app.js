@@ -5,13 +5,15 @@ const cors = require("cors");
 const path = require("path");
 const axios = require("axios");
 const colors = require("colors");
+const cookieParser = require("cookie-parser");
+const jwt = require("jsonwebtoken");
 
 const Payment = require("./models/payment");
 const Booking = require("./models/booking");
 const Train = require("./models/train");
 const { sendTickets } = require("./utils/emailService");
 
-// Routers (adjust paths as necessary)
+// Routers
 const authRouter = require("./routes/authRoutes");
 const trainRouter = require("./routes/trainRoutes");
 const bookingRouter = require("./routes/bookingRoutes");
@@ -21,23 +23,59 @@ const ticketRouter = require("./routes/ticketRoutes");
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+// Middleware
 app.use(express.json());
 app.use(cors());
+app.use(cookieParser());
 app.use(express.static(path.join(__dirname, "public")));
 app.set("view engine", "handlebars");
 app.set("views", path.join(__dirname, "views"));
 
-app.use("/api/v1/auth", authRouter);
-app.use("/api/v1/trains", trainRouter);
-app.use("/api/v1/bookings", bookingRouter);
-app.use("/api/v1/payments", paymentRouter);
-app.use("/api/v1/ticket", ticketRouter);
+// Authentication middleware
+const verifyToken = async (req, res, next) => {
+  const token = req.cookies.token;
+  
+  if (!token) {
+    return res.status(401).json({ success: false, message: 'Not authenticated' });
+  }
 
-/**
- * Payment callback endpoint.
- * - This route verifies payment and confirms the booking.
- * - Reserved seats are not modified here since they were set during booking creation.
- */
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    req.user = decoded;
+    next();
+  } catch (error) {
+    return res.status(401).json({ success: false, message: 'Invalid token' });
+  }
+};
+
+app.use("/api/v1/auth", authRouter);
+app.use("/api/v1/trains", verifyToken, trainRouter);
+app.use("/api/v1/bookings", verifyToken, bookingRouter);
+app.use("/api/v1/payments", verifyToken, paymentRouter);
+app.use("/api/v1/ticket", verifyToken, ticketRouter);
+
+// User profile endpoint
+app.get("/api/v1/auth/me", verifyToken, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id).select("-password");
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+    res.json({ 
+      success: true, 
+      user: {
+        id: user._id,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        email: user.email
+      } 
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+// Payment callback route
 app.get("/payment-callback", async (req, res) => {
   try {
     const { reference } = req.query;
