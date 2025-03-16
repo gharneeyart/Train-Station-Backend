@@ -24,8 +24,20 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 
 // Middleware
+const allowedOrigins = [
+  "http://localhost:5173", 
+  "https://train-station-one.vercel.app"
+];
+
+app.use(
+  cors({
+    origin: allowedOrigins,        // or use a function for dynamic checks
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+    credentials: true,             // if you need cookies, set to true
+  })
+);
 app.use(express.json());
-app.use(cors());
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, "public")));
 app.set("view engine", "handlebars");
