@@ -170,16 +170,31 @@ exports.searchTrains = async (req, res) => {
  */
 exports.getAvailableDates = async (req, res) => {
   try {
-    const trains = await Train.find();
+    const { fromStation, toStation } = req.query;
+
+    let query = Train.find();
+    if (fromStation && toStation) {
+      query = query.and([
+        { "departure.station": fromStation },
+        { "arrival.station": toStation },
+      ]);
+    }
+
+    const trains = await query;
     const availableDates = new Set();
+
     trains.forEach((train) => {
       if (train.classes.some((cls) => cls.availableSeats > 0)) {
-        availableDates.add(train.departure.date);
+        availableDates.add(train.departure.date.toISOString().split("T")[0]);
       }
     });
+
     res.status(200).json(Array.from(availableDates));
   } catch (error) {
     console.error("Error fetching available dates:", error);
-    res.status(500).json({ message: "Server error", error });
+    res.status(500).json({
+      message: "Server error",
+      error: error.message,
+    });
   }
 };
