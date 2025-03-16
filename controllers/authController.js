@@ -21,16 +21,15 @@ exports.registerUser = async (req, res, next) => {
     } = req.body;
 
     // Check if user already exists (by email or phone number)
-    let user = await User.findOne({ $or: [{ email }, { phoneNumber }] });
-    if (user) {
+    if (await User.exists({ $or: [{ email }, { phoneNumber }] })) {
       return res.status(400).json({
         success: false,
-        message: "Email and Phone Number already exists",
+        message: "Email or Phone Number already exists",
       });
     }
 
-    // Create new User (Mongoose will perform validations)
-    user = await User.create({
+    // Create user
+    const user = await User.create({
       firstName,
       lastName,
       phoneNumber,
@@ -42,22 +41,9 @@ exports.registerUser = async (req, res, next) => {
       password,
     });
 
-    // Send token response on successful registration
     sendTokenResponse(user, 201, res);
   } catch (error) {
-    // If it's a Mongoose validation error, format errors per field
-    if (error.name === "ValidationError") {
-      const errors = {};
-      Object.keys(error.errors).forEach((field) => {
-        errors[field] = error.errors[field].message;
-      });
-      return res.status(400).json({ success: false, errors });
-    }
-    res.status(500).json({
-      success: false,
-      message: "Server Error",
-      error: error.message,
-    });
+    handleErrorResponse(error, res);
   }
 };
 
@@ -73,125 +59,106 @@ exports.loginUser = async (req, res) => {
         message: "Please provide an email and password",
       });
     }
+
     const user = await User.findOne({ email }).select("+password");
     if (!user || !(await user.matchPassword(password))) {
       return res
         .status(401)
         .json({ success: false, message: "Invalid credentials" });
     }
+
     sendTokenResponse(user, 200, res);
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: "Server Error",
-      error: error.message,
-    });
+    handleErrorResponse(error, res);
   }
 };
 
-// @desc Get Logged-In User Profile
-// @route GET /api/v1/auth/user
-// @access Private
-
+// @desc    Get Logged-In User Profile
+// @route   GET /api/v1/auth/user
+// @access  Private
 exports.getUserProfile = async (req, res) => {
   try {
     const user = await User.findById(req.user.id).select("-password");
-    if (!user) {
+    if (!user)
       return res
         .status(404)
         .json({ success: false, message: "User not found" });
-    }
 
     res.status(200).json({ success: true, user });
   } catch (error) {
-    res
-      .status(500)
-      .json({ success: false, message: "Server Error", error: error.message });
+    handleErrorResponse(error, res);
   }
 };
 
-// @desc Update user profile
-// @route PUT /api/v1/auth/update-profile
-// @access Private
-
+// @desc    Update User Profile
+// @route   PUT /api/v1/auth/update-profile
+// @access  Private
 exports.updateUserProfile = async (req, res) => {
   try {
-    const updates = req.body;
-
-    const user = await User.findByIdAndUpdate(req.user.id, updates, {
+    const user = await User.findByIdAndUpdate(req.user.id, req.body, {
       new: true,
+      runValidators: true,
     });
 
-    if (!user) {
+    if (!user)
       return res
         .status(404)
         .json({ success: false, message: "User not found" });
-    }
 
     res
       .status(200)
       .json({ success: true, message: "Profile updated successfully", user });
   } catch (error) {
-    res
-      .status(500)
-      .json({ success: false, message: "Server Error", error: error.message });
+    handleErrorResponse(error, res);
   }
 };
 
-// @desc Forgot Password (Generate reset token)
-// @route POST /api/v1/auth/forgot-password
-// @access Public
-
+// @desc    Forgot Password
+// @route   POST /api/v1/auth/forgot-password
+// @access  Public
 exports.forgotPassword = async (req, res) => {
   try {
     const user = await User.findOne({ email: req.body.email });
-
-    if (!user) {
+    if (!user)
       return res
         .status(404)
         .json({ success: false, message: "User Not Found" });
-    }
 
-    //Get reset token
     const resetToken = user.getResetPasswordToken();
     await user.save({ validateBeforeSave: false });
 
-    //Create reset URL (Later Will Repalce with Frontend URL)
     const resetUrl = `${req.protocol}://${req.get(
       "host"
     )}/api/v1/auth/reset-password/${resetToken}`;
 
-    res.status(200).json({
-      success: true,
-      message: "Password reset link has been sent",
-      resetUrl,
-    });
-  } catch (error) {
     res
-      .status(500)
-      .json({ success: false, message: "Server Error", error: error.message });
+      .status(200)
+      .json({ success: true, message: "Password reset link sent", resetUrl });
+  } catch (error) {
+    handleErrorResponse(error, res);
   }
 };
 
-// @desc Reset Password
-// @route PUT /api/v1/auth/reset-password/resetToken
-// @access Public
-
+// @desc    Reset Password
+// @route   PUT /api/v1/auth/reset-password/:resetToken
+// @access  Public
 exports.resetPassword = async (req, res) => {
   try {
-    //Hash token
     const resetPasswordToken = crypto
       .createHash("sha256")
       .update(req.params.resetToken)
       .digest("hex");
 
-    //Find user by reset token and check if token is not expired
     const user = await User.findOne({
       resetPasswordToken,
       resetPasswordExpire: { $gt: Date.now() },
     });
 
-    //Set new password
+    if (!user)
+      return res
+        .status(400)
+        .json({ success: false, message: "Invalid or expired token" });
+
     user.password = req.body.password;
     user.resetPasswordToken = undefined;
     user.resetPasswordExpire = undefined;
@@ -202,18 +169,13 @@ exports.resetPassword = async (req, res) => {
       .status(200)
       .json({ success: true, message: "Password reset successful" });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: "Server Error",
-      error: error.message,
-    });
+    handleErrorResponse(error, res);
   }
 };
 
-// @desc Update Password while logged in
-// @route PUT /api/v1/auth/update-password
-// @access Private
-
+// @desc    Update Password
+// @route   PUT /api/v1/auth/update-password
+// @access  Private
 exports.updatePassword = async (req, res) => {
   try {
     const user = await User.findById(req.user.id).select("+password");
@@ -224,7 +186,6 @@ exports.updatePassword = async (req, res) => {
         .json({ success: false, message: "Incorrect Current Password" });
     }
 
-    //Update Password
     user.password = req.body.newPassword;
     await user.save();
 
@@ -232,30 +193,20 @@ exports.updatePassword = async (req, res) => {
       .status(200)
       .json({ success: true, message: "Password updated successfully" });
   } catch (error) {
-    res
-      .status(500)
-      .json({ success: false, message: "Server Error", error: error.message });
+    handleErrorResponse(error, res);
   }
 };
 
-// @desc Get all users
-// @route GET /api/v1/auth/users
-// @access Private (Admin Only)
-
+// @desc    Get All Users
+// @route   GET /api/v1/auth/users
+// @access  Private (Admin Only)
 exports.getAllUsers = async (req, res) => {
   try {
-    //Fetch all users, excluding passwords
     const users = await User.find().select("-password");
 
-    res.status(200).json({
-      success: true,
-      count: users.length,
-      data: users,
-    });
+    res.status(200).json({ success: true, count: users.length, data: users });
   } catch (error) {
-    res
-      .status(500)
-      .json({ success: false, message: "Server Error", error: error.message });
+    handleErrorResponse(error, res);
   }
 };
 
@@ -267,5 +218,23 @@ exports.logoutUser = async (req, res) => {
     httpOnly: true,
     expires: new Date(0),
   });
+
   res.status(200).json({ success: true, message: "Logged out successfully" });
+};
+
+// Centralized Error Handler
+const handleErrorResponse = (error, res) => {
+  console.error(error);
+
+  if (error.name === "ValidationError") {
+    const errors = {};
+    Object.keys(error.errors).forEach((field) => {
+      errors[field] = error.errors[field].message;
+    });
+    return res.status(400).json({ success: false, errors });
+  }
+
+  res
+    .status(500)
+    .json({ success: false, message: "Server Error", error: error.message });
 };
