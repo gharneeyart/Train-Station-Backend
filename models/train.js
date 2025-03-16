@@ -5,8 +5,8 @@ const ClassSchema = new mongoose.Schema({
   type: { type: String, required: true },
   priceAdult: { type: String, required: true },
   priceChild: { type: String, required: true },
-  totalSeats: { type: Number, required: true }, 
-  reservedSeats: { type: Number, default: 0 },    
+  totalSeats: { type: Number, required: true },
+  reservedSeats: { type: Number, default: 0 },
 });
 
 // Virtual for available seats
@@ -25,14 +25,14 @@ const TrainSchema = new mongoose.Schema({
     street: { type: String },
     year: { type: String },
     time: { type: String, required: true },
-    date: { type: String, required: true },
+    date: { type: Date, required: true },
   },
   arrival: {
     station: { type: String, required: true },
     street: { type: String },
     year: { type: String },
     time: { type: String, required: true },
-    date: { type: String, required: true },
+    date: { type: Date, required: true },
   },
   trainNumber: { type: String, required: true, unique: true },
   route: { type: String, required: true },
@@ -44,5 +44,10 @@ const TrainSchema = new mongoose.Schema({
 // Ensure virtuals are included for Train documents as well
 TrainSchema.set("toJSON", { virtuals: true });
 TrainSchema.set("toObject", { virtuals: true });
+TrainSchema.index({
+  "departure.station": 1,
+  "arrival.station": 1,
+  "departure.date": 1,
+});
 
 module.exports = mongoose.model("Train", TrainSchema);
