@@ -150,10 +150,9 @@ exports.searchTrains = async (req, res) => {
     // Add logging to see the available trains
     console.log("Available trains after filtering:", availableTrains);
 
+    // Return 200 status with empty array if no trains are available
     if (!availableTrains.length) {
-      return res
-        .status(404)
-        .json({ message: "No available trains for this date." });
+      return res.status(200).json([]);
     }
 
     res.status(200).json(availableTrains);
