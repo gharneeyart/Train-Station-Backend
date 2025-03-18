@@ -103,7 +103,7 @@ app.get("/payment-callback", async (req, res, next) => {
 
     // Redirect to the ticket page on the frontend with the bookingId
     return res.redirect(
-      `${process.env.FRONTEND_URL}/ticket/${booking.bookingId}`
+      `${process.env.FRONTEND_URL}/ticket`
     );
   } catch (error) {
     next(error);

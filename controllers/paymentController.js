@@ -1,5 +1,4 @@
 // controllers/paymentController.js
-
 const mongoose = require("mongoose");
 const axios = require("axios");
 const crypto = require("crypto");
@@ -103,12 +102,33 @@ exports.verifyPayment = async (req, res) => {
     await payment.save();
 
     // Update booking status to "confirmed"
-    const booking = await Booking.findById(payment.booking);
-    if (booking) {
-      booking.status = "confirmed";
-      await booking.save();
-      // Send email
+    const booking = await Booking.findById(payment.booking).populate("train"); // Ensure we populate the train reference
+
+    if (!booking) {
+      return res.status(404).json({ message: "Booking not found" });
+    }
+
+    if (!booking.train || !booking.train.departure || !booking.train.arrival) {
+      console.error(
+        "Booking is missing train departure or arrival information"
+      );
+      return res.status(500).json({
+        message: "Failed to send tickets - missing train information",
+      });
+    }
+
+    booking.status = "confirmed";
+    await booking.save();
+
+    // Send email
+    try {
       await sendTickets(booking, booking.contact);
+    } catch (emailError) {
+      console.error("Failed to send tickets:", emailError);
+      return res.status(500).json({
+        message: "Payment verified but failed to send tickets",
+        error: emailError.message,
+      });
     }
 
     return res.status(200).json({ message: "Payment verified successfully" });
