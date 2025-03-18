@@ -12,7 +12,7 @@ const Payment = require("./models/payment");
 const Booking = require("./models/booking");
 const Train = require("./models/train");
 const { sendTickets } = require("./utils/emailService");
-const errorHandler = require("./middlewares/errorHandler");
+const errorHandler = require("./middlewares/erroHandler");
 
 // Routers
 const authRouter = require("./routes/authRoutes");
