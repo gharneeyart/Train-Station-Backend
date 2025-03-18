@@ -65,7 +65,7 @@ exports.sendTickets = async (booking, contact) => {
       );
 
       const mailOptions = {
-        from: "NRC Bookings <bookings@nrc.com>",
+        from: "NRC Bookings <aduragbemishobowale10@gmail.com>",
         to: passenger.email,
         subject: "Your Nigerian Railway Corporation Ticket",
         html: html,
@@ -103,7 +103,7 @@ exports.sendTickets = async (booking, contact) => {
     );
 
     const summaryOptions = {
-      from: "NRC Bookings <bookings@nrc.com>",
+      from: "NRC Bookings <aduragbemishobowale10@gmail.com>",
       to: contact.email,
       subject: "Summary of Your Nigerian Railway Corporation Booking",
       html: summaryHtml,
