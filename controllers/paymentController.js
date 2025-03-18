@@ -6,9 +6,6 @@ const Booking = require("../models/booking");
 const Train = require("../models/train");
 const { sendTickets } = require("../utils/emailService");
 
-/**
- * Initialize payment with Paystack.
- */
 exports.initializePayment = async (req, res) => {
   try {
     const { bookingId } = req.body;
@@ -33,7 +30,7 @@ exports.initializePayment = async (req, res) => {
       email: booking.contact.email,
       amount: booking.totalPrice * 100, // Convert to kobo
       reference: newPayment.reference,
-      callback_url: `${process.env.FRONTEND_URL}/payment-callback`,
+      callback_url: `${process.env.FRONTEND_URL}/payment-success`,
     };
 
     const options = {
@@ -56,11 +53,6 @@ exports.initializePayment = async (req, res) => {
   }
 };
 
-/**
- * Verify payment with Paystack.
- * - Updates the payment status and sets booking status to confirmed.
- * - Does not update reservedSeats again.
- */
 exports.verifyPayment = async (req, res) => {
   try {
     const { ref } = req.params;
@@ -96,11 +88,9 @@ exports.verifyPayment = async (req, res) => {
     session.startTransaction();
 
     try {
-      // Update payment record
       payment.status = "successful";
       await payment.save({ session });
 
-      // Update booking status to confirmed (without changing reservedSeats)
       const booking = await Booking.findById(payment.booking).populate("train");
       if (!booking) {
         await session.abortTransaction();
@@ -123,28 +113,23 @@ exports.verifyPayment = async (req, res) => {
       await session.commitTransaction();
       session.endSession();
 
-      // Optionally, send tickets via email
-      try {
-        await sendTickets(booking, booking.contact);
-      } catch (error) {
-        console.error("Error sending tickets:", error);
-      }
+      await sendTickets(booking, booking.contact);
 
-      return res.status(200).json({
-        message: "Payment verified successfully",
-        payment: paymentVerification.data,
-        bookingId: booking.bookingId,
-      });
+      res.redirect(
+        `${process.env.FRONTEND_URL}/payment-success?bookingId=${booking.bookingId}`
+      );
     } catch (error) {
       await session.abortTransaction();
       session.endSession();
-      return res
-        .status(500)
-        .json({ message: "Payment verification failed", error: error.message });
+      res.status(500).json({
+        message: "Payment verification failed",
+        error: error.message,
+      });
     }
   } catch (error) {
-    return res
-      .status(500)
-      .json({ message: "Payment verification failed", error: error.message });
+    res.status(500).json({
+      message: "Payment verification failed",
+      error: error.message,
+    });
   }
 };

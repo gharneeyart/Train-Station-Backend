@@ -13,7 +13,7 @@ const Train = require("./models/train");
 const { sendTickets } = require("./utils/emailService");
 const errorHandler = require("./middlewares/erroHandler");
 
-// Routers (adjust paths as necessary)
+// Routers
 const authRouter = require("./routes/authRoutes");
 const trainRouter = require("./routes/trainRoutes");
 const bookingRouter = require("./routes/bookingRoutes");
@@ -25,16 +25,16 @@ const PORT = process.env.PORT || 5000;
 
 // Middleware
 const allowedOrigins = [
-  "http://localhost:5173", 
-  "https://train-station-one.vercel.app"
+  "http://localhost:5173",
+  "https://train-station-one.vercel.app",
 ];
 
 app.use(
   cors({
-    origin: allowedOrigins,        // or use a function for dynamic checks
+    origin: allowedOrigins,
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
-    credentials: true,             // if you need cookies, set to true
+    credentials: true,
   })
 );
 app.use(express.json());
@@ -93,11 +93,11 @@ app.get("/payment-callback", async (req, res, next) => {
       `${process.env.FRONTEND_URL}/payment-success?bookingId=${booking.bookingId}`
     );
   } catch (error) {
-    next(error); // ✅ Pass errors to error handler
+    next(error);
   }
 });
 
-// ✅ Error-handling middleware (must be placed after all routes)
+// Error handling middleware
 app.use(errorHandler);
 
 const start = async () => {
