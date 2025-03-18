@@ -1,3 +1,4 @@
+// app.js
 require("dotenv").config();
 const express = require("express");
 const mongoose = require("mongoose");
@@ -11,7 +12,7 @@ const Payment = require("./models/payment");
 const Booking = require("./models/booking");
 const Train = require("./models/train");
 const { sendTickets } = require("./utils/emailService");
-const errorHandler = require("./middlewares/erroHandler");
+const errorHandler = require("./middlewares/errorHandler");
 
 // Routers
 const authRouter = require("./routes/authRoutes");

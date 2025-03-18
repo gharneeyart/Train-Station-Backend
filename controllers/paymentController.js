@@ -1,3 +1,4 @@
+// paymentController.js
 const mongoose = require("mongoose");
 const axios = require("axios");
 const crypto = require("crypto");
@@ -31,6 +32,9 @@ exports.initializePayment = async (req, res) => {
       amount: booking.totalPrice * 100, // Convert to kobo
       reference: newPayment.reference,
       callback_url: `${process.env.FRONTEND_URL}/payment-success`,
+      metadata: {
+        webhook_url: `${process.env.BACKEND_URL}/api/v1/payments/webhook`,
+      },
     };
 
     const options = {
@@ -84,52 +88,65 @@ exports.verifyPayment = async (req, res) => {
       return res.status(404).json({ message: "Payment record not found" });
     }
 
-    const session = await mongoose.startSession();
-    session.startTransaction();
+    payment.status = "successful";
+    await payment.save();
 
-    try {
-      payment.status = "successful";
-      await payment.save({ session });
-
-      const booking = await Booking.findById(payment.booking).populate("train");
-      if (!booking) {
-        await session.abortTransaction();
-        session.endSession();
-        return res.status(404).json({ message: "Booking not found" });
-      }
-
+    const booking = await Booking.findById(payment.booking).populate("train");
+    if (booking) {
       booking.status = "confirmed";
-      if (!booking.bookingId) {
-        const prefix = "NRC";
-        let bookingId;
-        do {
-          bookingId = prefix + Math.floor(10000000 + Math.random() * 90000000);
-          const exists = await Booking.exists({ bookingId });
-          if (!exists) break;
-        } while (true);
-        booking.bookingId = bookingId;
-      }
-      await booking.save({ session });
-      await session.commitTransaction();
-      session.endSession();
-
+      await booking.save();
       await sendTickets(booking, booking.contact);
-
-      res.redirect(
-        `${process.env.FRONTEND_URL}/payment-success?bookingId=${booking.bookingId}`
-      );
-    } catch (error) {
-      await session.abortTransaction();
-      session.endSession();
-      res.status(500).json({
-        message: "Payment verification failed",
-        error: error.message,
-      });
     }
+
+    res.status(200).json({ message: "Payment verified successfully" });
   } catch (error) {
+    console.error("Payment verification error:", error);
     res.status(500).json({
       message: "Payment verification failed",
       error: error.message,
     });
+  }
+};
+
+exports.handleWebhook = async (req, res) => {
+  try {
+    const event = req.body.event;
+    const data = req.body.data;
+
+    if (event === "charge.success") {
+      const reference = data.reference;
+      // Verify payment using the reference
+      const paymentVerification = await axios.get(
+        `https://api.paystack.co/transaction/verify/${reference}`,
+        {
+          headers: {
+            Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}`,
+          },
+        }
+      );
+
+      if (
+        paymentVerification.data.status &&
+        paymentVerification.data.data.status === "success"
+      ) {
+        const payment = await Payment.findOne({ reference });
+        if (payment) {
+          payment.status = "successful";
+          await payment.save();
+
+          const booking = await Booking.findById(payment.booking);
+          if (booking) {
+            booking.status = "confirmed";
+            await booking.save();
+            await sendTickets(booking, booking.contact);
+          }
+        }
+      }
+    }
+
+    res.status(200).send("Webhook received");
+  } catch (error) {
+    console.error("Webhook error:", error);
+    res.status(500).send("Webhook processing failed");
   }
 };
