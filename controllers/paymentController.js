@@ -15,12 +15,12 @@ exports.initializePayment = async (req, res) => {
     if (!bookingId) {
       return res.status(400).json({ message: "Booking ID is required" });
     }
+
     const booking = await Booking.findById(bookingId);
     if (!booking) {
       return res.status(404).json({ message: "Booking not found" });
     }
 
-    // Create a payment record
     const newPayment = new Payment({
       booking: bookingId,
       amount: booking.totalPrice,
@@ -29,12 +29,11 @@ exports.initializePayment = async (req, res) => {
 
     await newPayment.save();
 
-    // Prepare request data for Paystack
     const requestData = {
       email: booking.contact.email,
       amount: booking.totalPrice * 100, // Convert to kobo
       reference: newPayment.reference,
-      callback_url: `${process.env.BASE_URL}/payment-callback`,
+      callback_url: `${process.env.FRONTEND_URL}/payment-callback`,
     };
 
     const options = {
@@ -52,9 +51,8 @@ exports.initializePayment = async (req, res) => {
 
     return res.status(200).json(response.data);
   } catch (error) {
-    res
-      .status(500)
-      .json({ message: "Payment initialization failed", error: error.message });
+    console.error("Payment initialization error:", error);
+    res.status(500).json({ message: "Payment initialization failed" });
   }
 };
 
