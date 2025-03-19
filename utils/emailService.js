@@ -115,3 +115,29 @@ exports.sendTickets = async (booking, contact) => {
     throw error;
   }
 };
+// Send password reset email
+exports.sendPasswordResetEmail = async (user, resetToken, resetUrl) => {
+  try {
+    const context = {
+      user: user,
+      resetUrl: resetUrl,
+    };
+
+    const html = compileTemplate(
+      path.resolve("./views/resetPasswordEmail.handlebars"),
+      context
+    );
+
+    const mailOptions = {
+      from: "NRC Bookings <aduragbemishobowale10@gmail.com>",
+      to: user.email,
+      subject: "Password Reset Request",
+      html: html,
+    };
+
+    await transporter.sendMail(mailOptions);
+  } catch (error) {
+    console.error("Error sending password reset email:", error);
+    throw error;
+  }
+};

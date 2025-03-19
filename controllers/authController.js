@@ -2,6 +2,7 @@ const User = require("../models/user");
 const crypto = require("crypto");
 const bcrypt = require("bcryptjs");
 const sendTokenResponse = require("../utils/sendTokenResponse");
+const emailService = require("../services/emailService");
 
 // @desc    Register User
 // @route   POST /api/v1/auth/register
@@ -116,7 +117,7 @@ exports.updateUserProfile = async (req, res) => {
 // @desc    Forgot Password
 // @route   POST /api/v1/auth/forgot-password
 // @access  Public
-exports.forgotPassword = async (req, res) => {
+exports.forgotPassword = async (req, res, next) => {
   try {
     const user = await User.findOne({ email: req.body.email });
     if (!user)
@@ -129,11 +130,20 @@ exports.forgotPassword = async (req, res) => {
 
     const resetUrl = `${req.protocol}://${req.get(
       "host"
-    )}/api/v1/auth/reset-password/${resetToken}`;
+    )}/reset-password/${resetToken}`;
 
-    res
-      .status(200)
-      .json({ success: true, message: "Password reset link sent", resetUrl });
+    try {
+      await emailService.sendResetPasswordEmail(user, resetToken, resetUrl);
+      res.status(200).json({
+        success: true,
+        message: "Password reset link has been sent to your email",
+      });
+    } catch (error) {
+      return res.status(500).json({
+        success: false,
+        message: "Error sending email",
+      });
+    }
   } catch (error) {
     handleErrorResponse(error, res);
   }
