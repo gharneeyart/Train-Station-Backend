@@ -2,7 +2,7 @@ const User = require("../models/user");
 const crypto = require("crypto");
 const bcrypt = require("bcryptjs");
 const sendTokenResponse = require("../utils/sendTokenResponse");
-const emailService = require("../services/emailService");
+const emailService = require("../utils/emailService");
 
 // @desc    Register User
 // @route   POST /api/v1/auth/register
