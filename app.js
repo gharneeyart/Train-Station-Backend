@@ -115,7 +115,7 @@ app.get("/payment-callback", async (req, res, next) => {
 
     // Function to send tickets with retry logic
     async function sendTicketsWithRetry(booking, contact) {
-      const maxRetries = 3;
+      const maxRetries = 2;
       let delay = 5000; // Initial delay of 5 seconds
 
       for (let attempt = 0; attempt < maxRetries; attempt++) {
