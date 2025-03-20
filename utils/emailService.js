@@ -78,10 +78,10 @@ exports.sendTickets = async (booking, contact) => {
       const context = {
         departureTime: booking.train.departure.time,
         departureStation: booking.train.departure.station,
-        departureDate: booking.train.departure.date,
+        departureDate: booking.train.departure.date.toLocaleDateString(),
         arrivalTime: booking.train.arrival.time,
         arrivalStation: booking.train.arrival.station,
-        arrivalDate: booking.train.arrival.date,
+        arrivalDate: booking.train.arrival.date.toLocaleDateString(),
         trainNumber: booking.train.trainNumber,
         coachNumber: booking.coach,
         seatNumber: booking.seats[index],
@@ -92,6 +92,8 @@ exports.sendTickets = async (booking, contact) => {
         passengerNIN: passenger.nin,
         passengerEmail: passenger.email,
         passengerPhone: passenger.phone,
+        classType: booking.classType,
+        duration: booking.train.duration,
       };
 
       // Validate context

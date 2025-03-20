@@ -6,28 +6,30 @@
     <style>
       body { font-family: Arial, sans-serif; background-color: #f4f4f4;
       text-align: center; margin: 0; padding: 20px; height: auto; } .ticket {
-      max-width: 500px; margin: 0 auto; background: white; /* padding: 20px; */
-      border-radius: 10px; box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.2); }
-      .header img { width: 150px; display: flex; flex-direction: column;
-      justify-content: center; align-items: center; } .header p { color: black;
-      margin-bottom: 20px; } .route-info { display: flex; justify-content:
-      space-between; /* background-color: #228b22; */ color: gray; padding:
-      15px; border-radius: 5px; text-align: start; } h1 { background-color:
+      max-width: 500px; margin: 0 auto; background: white; border-radius: 10px;
+      box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.2); } .header { display: grid;
+      justify-content: center; align-items: center; margin: 0 auto; } .header
+      img { width: 150px; margin: 0 auto; } .header p { color: black;
+      margin-bottom: 20px; } p { color: #767676; } h1 { background-color:
       #006b14; padding: 10px; color: white; margin: 0; font-size: 22px;
-      border-top-left-radius: 10px; border-top-right-radius: 10px; } /*
-      .ticket-details { text-align: left; margin-top: 20px; display: flex; } */
-      .ticket-details { padding: 15px; } .passenger-info { text-align: left;
-      margin-top: 20px; display: flex; justify-content: space-between; padding:
-      15px; } /* .ticket-details p, .passenger-info p { padding: 5px 0; } */ p {
-      color: #767676; } strong { color: black; } .footer { margin-top: 20px;
-      font-size: 14px; text-align: center; align-items: center; } .footer p {
-      margin-bottom: 40px; color: black; } .social-icons { display: flex;
-      align-items: center; justify-content: center; gap: 5px } .sub-details {
-      display: flex; align-items: center; justify-content: space-between; } hr {
-      color: #dfe1e7; margin: 0px 15px; color: #dfe1e7; } .headerImg {
-      background-color: #e4f3e7; padding: 20px; } .nrt { margin: 0px 10px 0px
-      10px; border: 1px solid #006b14; border-radius: 10px; } .nin { margin-top:
-      40px; }
+      border-top-left-radius: 10px; border-top-right-radius: 10px; } /* Use grid
+      for route info with two equal columns */ .route-info { display: grid;
+      grid-template-columns: repeat(3, 1fr); gap: 15px; color: gray; padding:
+      15px; border-radius: 5px; text-align: left; } .route-route { display:
+      grid; justify-content: center; align-items: center; margin: 0 auto; }
+      .route-route img { margin: 0 auto; } .ticket-details { padding: 15px; } /*
+      Use grid to split sub-details into three columns */ .sub-details {
+      display: grid; grid-template-columns: repeat(3, 1fr); } /* Use grid for
+      passenger info with two columns */ .passenger-info { text-align: left;
+      margin-top: 20px; display: grid; grid-template-columns: repeat(2, 1fr);
+      padding: 15px; } strong { color: black; } .footer { margin-top: 20px;
+      font-size: 14px; } .footer p { margin-bottom: 40px; color: black; } /* Use
+      grid for social icons with a column flow */ .social-icons { display: grid;
+      grid-auto-flow: column; justify-content: center; gap: 5px; } .sub-details
+      { display: grid; grid-template-columns: repeat(3, 1fr); } hr { color:
+      #dfe1e7; margin: 0px 15px; } .headerImg { background-color: #e4f3e7;
+      padding: 20px; } .nrt { margin: 0px 10px; border: 1px solid #006b14;
+      border-radius: 10px; } .nin { margin-top: 40px; }
     </style>
   </head>
   <body>
@@ -45,7 +47,6 @@
           details are below.
         </p>
       </div>
-
       <div class="nrt">
         <h1>NRC E-ticket</h1>
         <div class="route-info">
@@ -54,21 +55,27 @@
             <p>{{departureStation}}</p>
             <p>{{departureDate}}</p>
           </div>
+          <div class="route-route">
+            <p><strong>{{classType}}</strong></p>
+            <img
+              src="https://res.cloudinary.com/dgde8cwjk/image/upload/v1742475501/TrainStation%20Pictures/Frame_1000003455_hr2vg6.png"
+              alt=""
+            />
+            <p><strong>{{duration}}</strong></p>
+          </div>
           <div>
             <p><strong>{{arrivalTime}}</strong></p>
             <p>{{arrivalStation}}</p>
             <p>{{arrivalDate}}</p>
           </div>
         </div>
-
         <hr />
-
         <div class="ticket-details">
           <div class="sub-details">
             <div class="number-ID">
               <p><strong>{{trainNumber}}</strong></p>
               <p>Train Number</p>
-              <p style="margin-top: 30px"><strong> {{bookingId}}</strong></p>
+              <p style="margin-top: 30px"><strong>{{bookingId}}</strong></p>
               <p>Booking ID</p>
             </div>
             <div class="date">
@@ -85,18 +92,15 @@
             </div>
           </div>
         </div>
-
         <hr />
-
         <div class="passenger-info">
           <div class="name">
             <h3>Passenger Details</h3>
             <p>Full Name</p>
-            <p><strong> {{passengerName}}</strong></p>
+            <p><strong>{{passengerName}}</strong></p>
             <p>Email</p>
-            <p><strong> {{passengerEmail}}</strong></p>
+            <p><strong>{{passengerEmail}}</strong></p>
           </div>
-
           <div class="nin">
             <p>NIN</p>
             <p><strong>{{passengerNIN}}</strong></p>
@@ -105,7 +109,6 @@
           </div>
         </div>
       </div>
-
       <div class="footer">
         <div class="social-icons">
           <img
