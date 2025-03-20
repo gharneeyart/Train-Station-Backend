@@ -16,10 +16,17 @@ exports.initializePayment = async (req, res) => {
       return res.status(400).json({ message: "Booking ID is required" });
     }
 
-    // Find the booking
-    const booking = await Booking.findById(bookingId);
+    // Find the booking and populate train information
+    const booking = await Booking.findById(bookingId).populate("train");
     if (!booking) {
       return res.status(404).json({ message: "Booking not found" });
+    }
+
+    // Check if train information is complete
+    if (!booking.train || !booking.train.departure || !booking.train.arrival) {
+      return res.status(500).json({
+        message: "Booking is missing train departure or arrival information",
+      });
     }
 
     // Create a new Payment record
@@ -34,9 +41,8 @@ exports.initializePayment = async (req, res) => {
     // Prepare data for Paystack
     const requestData = {
       email: booking.contact.email,
-      amount: booking.totalPrice * 100, // in kobo
+      amount: booking.totalPrice * 100, // Convert to kobo
       reference: reference,
-      // IMPORTANT: callback_url goes to your BACKEND route
       callback_url: `${process.env.BACKEND_URL}/payment-callback`,
     };
 
