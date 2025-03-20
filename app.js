@@ -91,21 +91,65 @@ app.get("/payment-callback", async (req, res, next) => {
     payment.status = "successful";
     await payment.save();
 
-    // Update the booking
-    const booking = await Booking.findById(payment.booking);
-    if (booking) {
-      booking.status = "confirmed";
-      await booking.save();
+    // Update the booking with population to get train details
+    const booking = await Booking.findById(payment.booking)
+      .populate("train") // Ensure we get train details
+      .exec();
 
-      // Send email with tickets
-      await sendTickets(booking, booking.contact);
+    if (!booking) {
+      return res.status(404).send("Booking not found");
     }
 
-    // Redirect to the ticket page on the frontend with the bookingId
-    return res.redirect(
-      `${process.env.FRONTEND_URL}/ticket`
-    );
+    // Check if train information is complete
+    if (!booking.train || !booking.train.departure || !booking.train.arrival) {
+      console.error(
+        "Booking is missing train departure or arrival information"
+      );
+      return res
+        .status(500)
+        .send("Failed to process payment - missing train information");
+    }
+
+    booking.status = "confirmed";
+    await booking.save();
+
+    // Function to send tickets with retry logic
+    async function sendTicketsWithRetry(booking, contact) {
+      const maxRetries = 3;
+      let delay = 5000; // Initial delay of 5 seconds
+
+      for (let attempt = 0; attempt < maxRetries; attempt++) {
+        try {
+          await sendTickets(booking, contact);
+          console.log(`Tickets sent successfully on attempt ${attempt + 1}`);
+          return true;
+        } catch (error) {
+          console.error(`Email sending attempt ${attempt + 1} failed:`, error);
+          
+          if (attempt === maxRetries - 1) {
+            throw error; // Re-throw after final attempt
+          }
+          
+          // Wait before next attempt with exponential backoff
+          console.log(`Waiting ${delay}ms before next attempt`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+          delay *= 2; // Double the delay for next attempt
+        }
+      }
+    }
+
+    // Send email with tickets
+    try {
+      await sendTicketsWithRetry(booking, booking.contact);
+    } catch (emailError) {
+      console.error("All email sending attempts failed:", emailError);
+      // Consider implementing alerting or logging for monitoring
+    }
+
+    // Redirect to the ticket page on the frontend
+    return res.redirect(`${process.env.FRONTEND_URL}/ticket`);
   } catch (error) {
+    console.error("Payment callback error:", error);
     next(error);
   }
 });

@@ -4,9 +4,11 @@ const axios = require("axios");
 const crypto = require("crypto");
 const Payment = require("../models/payment");
 const Booking = require("../models/booking");
-const Train = require("../models/train");
 const { sendTickets } = require("../utils/emailService");
 
+/**
+ * Initialize Paystack payment
+ */
 exports.initializePayment = async (req, res) => {
   try {
     const { bookingId } = req.body;
@@ -14,26 +16,31 @@ exports.initializePayment = async (req, res) => {
       return res.status(400).json({ message: "Booking ID is required" });
     }
 
+    // Find the booking
     const booking = await Booking.findById(bookingId);
     if (!booking) {
       return res.status(404).json({ message: "Booking not found" });
     }
 
+    // Create a new Payment record
+    const reference = crypto.randomBytes(20).toString("hex");
     const newPayment = new Payment({
       booking: bookingId,
       amount: booking.totalPrice,
-      reference: crypto.randomBytes(20).toString("hex"),
+      reference,
     });
-
     await newPayment.save();
 
+    // Prepare data for Paystack
     const requestData = {
       email: booking.contact.email,
-      amount: booking.totalPrice * 100, // Convert to kobo
-      reference: newPayment.reference,
-      callback_url: `${process.env.FRONTEND_URL}/payment-success`,
+      amount: booking.totalPrice * 100, // in kobo
+      reference: reference,
+      // IMPORTANT: callback_url goes to your BACKEND route
+      callback_url: `${process.env.BACKEND_URL}/payment-callback`,
     };
 
+    // Call Paystack to initialize
     const options = {
       headers: {
         Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}`,
@@ -42,17 +49,19 @@ exports.initializePayment = async (req, res) => {
     };
 
     const response = await axios.post(
-      "https://api.paystack.co/transaction/initialize  ",
+      "https://api.paystack.co/transaction/initialize",
       requestData,
       options
     );
 
+    // Return the Paystack response to the frontend
     return res.status(200).json(response.data);
   } catch (error) {
     console.error("Payment initialization error:", error);
-    res.status(500).json({ message: "Payment initialization failed" });
+    return res.status(500).json({ message: "Payment initialization failed" });
   }
 };
+
 /**
  * (Optional) Manual verify endpoint (if you want your frontend to call /verify/:ref)
  */
@@ -93,33 +102,16 @@ exports.verifyPayment = async (req, res) => {
     await payment.save();
 
     // Update booking status to "confirmed"
-    const booking = await Booking.findById(payment.booking).populate("train"); // Ensure we populate the train reference
-
-    if (!booking) {
-      return res.status(404).json({ message: "Booking not found" });
-    }
-
-    if (!booking.train || !booking.train.departure || !booking.train.arrival) {
-      console.error(
-        "Booking is missing train departure or arrival information"
-      );
-      return res.status(500).json({
-        message: "Failed to send tickets - missing train information",
-      });
-    }
-
-    booking.status = "confirmed";
-    await booking.save();
-
-    // Send email
-    try {
-      await sendTickets(booking, booking.contact);
-    } catch (emailError) {
-      console.error("Failed to send tickets:", emailError);
-      return res.status(500).json({
-        message: "Payment verified but failed to send tickets",
-        error: emailError.message,
-      });
+    const booking = await Booking.findById(payment.booking);
+    if (booking) {
+      booking.status = "confirmed";
+      await booking.save();
+      // Send email
+      try {
+        await sendTickets(booking, booking.contact);
+      } catch (emailError) {
+        console.error("Failed to send tickets:", emailError);
+      }
     }
 
     return res.status(200).json({ message: "Payment verified successfully" });
