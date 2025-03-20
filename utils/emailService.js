@@ -3,20 +3,66 @@ const hbs = require("handlebars");
 const fs = require("fs");
 const path = require("path");
 
-// Configure transporter using Gmail shorthand
+// Configure transporter with pooling for better performance
 const transporter = nodemailer.createTransport({
   service: "Gmail",
   auth: {
     user: process.env.EMAIL_USER,
     pass: process.env.EMAIL_PASS,
   },
+  pool: true, // Enable pooling for multiple emails
 });
 
-// Helper function to compile Handlebars templates
-const compileTemplate = (templatePath, context) => {
-  const template = fs.readFileSync(templatePath, "utf8");
-  const compiledTemplate = hbs.compile(template);
-  return compiledTemplate(context);
+// Helper function to compile Handlebars templates with error handling
+const compileTemplate = (templateName, context) => {
+  try {
+    const templatePath = path.resolve(`./views/${templateName}.handlebars`);
+    const templateSource = fs.readFileSync(templatePath, "utf8");
+    const template = hbs.compile(templateSource);
+    return template(context);
+  } catch (error) {
+    console.error(`Error compiling template ${templateName}:`, error);
+    throw new Error(`Template compilation failed: ${error.message}`);
+  }
+};
+
+// Centralized email sending function
+const sendEmail = async (options) => {
+  try {
+    const mailOptions = {
+      from: `"NRC Bookings" <${process.env.EMAIL_USER || "noreply@nrc.com"}>`,
+      ...options,
+    };
+
+    await transporter.sendMail(mailOptions);
+    console.log(`Email sent to ${options.to} - ${options.subject}`);
+  } catch (error) {
+    console.error("Error sending email:", error);
+    throw error;
+  }
+};
+
+// Send password reset email
+exports.sendPasswordResetEmail = async (user, resetToken, resetUrl) => {
+  try {
+    const context = {
+      user: user,
+      resetUrl: resetUrl,
+    };
+
+    const html = compileTemplate("resetPasswordEmail", context);
+
+    await sendEmail({
+      to: user.email,
+      subject: "Password Reset Request",
+      html: html,
+    });
+
+    console.log(`Password reset email sent to ${user.email}`);
+  } catch (error) {
+    console.error("Error sending password reset email:", error);
+    throw error;
+  }
 };
 
 // Send tickets to passengers
@@ -24,10 +70,7 @@ exports.sendTickets = async (booking, contact) => {
   try {
     // Check if train and departure/arrival information exist
     if (!booking.train || !booking.train.departure || !booking.train.arrival) {
-      console.error(
-        "Missing train departure or arrival information in booking"
-      );
-      return;
+      throw new Error("Missing train departure or arrival information");
     }
 
     // Send individual tickets to each passenger
@@ -51,30 +94,23 @@ exports.sendTickets = async (booking, contact) => {
         passengerPhone: passenger.phone,
       };
 
-      // Check if all required context properties exist
-      for (const key in context) {
-        if (context[key] === undefined) {
-          console.error(`Missing required property in email context: ${key}`);
-          return;
+      // Validate context
+      Object.values(context).forEach((value) => {
+        if (value === undefined) {
+          throw new Error("Missing required property in email context");
         }
-      }
+      });
 
-      const html = compileTemplate(
-        path.resolve("./views/ticket.handlebars"),
-        context
-      );
+      const html = compileTemplate("ticket", context);
 
-      const mailOptions = {
-        from: "NRC Bookings <aduragbemishobowale10@gmail.com>",
+      await sendEmail({
         to: passenger.email,
         subject: "Your Nigerian Railway Corporation Ticket",
         html: html,
-      };
-
-      await transporter.sendMail(mailOptions);
+      });
     }
 
-    // Send summary to contact email
+    // Send booking summary to contact email
     const summaryContext = {
       bookingId: booking.bookingId,
       passengers: booking.passengers.map((passenger, index) => ({
@@ -87,57 +123,22 @@ exports.sendTickets = async (booking, contact) => {
       totalAmount: booking.totalPrice,
     };
 
-    // Check if all required summary context properties exist
-    for (const key in summaryContext) {
-      if (summaryContext[key] === undefined) {
-        console.error(
-          `Missing required property in summary email context: ${key}`
-        );
-        return;
+    // Validate summary context
+    Object.values(summaryContext).forEach((value) => {
+      if (value === undefined) {
+        throw new Error("Missing required property in summary email context");
       }
-    }
+    });
 
-    const summaryHtml = compileTemplate(
-      path.resolve("./views/bookingSummary.handlebars"),
-      summaryContext
-    );
+    const summaryHtml = compileTemplate("bookingSummary", summaryContext);
 
-    const summaryOptions = {
-      from: "NRC Bookings <aduragbemishobowale10@gmail.com>",
+    await sendEmail({
       to: contact.email,
       subject: "Summary of Your Nigerian Railway Corporation Booking",
       html: summaryHtml,
-    };
-
-    await transporter.sendMail(summaryOptions);
+    });
   } catch (error) {
-    console.error("Error sending emails:", error);
-    throw error;
-  }
-};
-// Send password reset email
-exports.sendPasswordResetEmail = async (user, resetToken, resetUrl) => {
-  try {
-    const context = {
-      user: user,
-      resetUrl: resetUrl,
-    };
-
-    const html = compileTemplate(
-      path.resolve("./views/resetPasswordEmail.handlebars"),
-      context
-    );
-
-    const mailOptions = {
-      from: "NRC Bookings <aduragbemishobowale10@gmail.com>",
-      to: user.email,
-      subject: "Password Reset Request",
-      html: html,
-    };
-
-    await transporter.sendMail(mailOptions);
-  } catch (error) {
-    console.error("Error sending password reset email:", error);
+    console.error("Error sending ticket emails:", error);
     throw error;
   }
 };

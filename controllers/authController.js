@@ -128,23 +128,23 @@ exports.forgotPassword = async (req, res, next) => {
     const resetToken = user.getResetPasswordToken();
     await user.save({ validateBeforeSave: false });
 
-    const resetUrl = `${req.protocol}://${req.get(
-      "host"
-    )}/reset-password/${resetToken}`;
+    const resetUrl = `${process.env.FRONTEND_URL}/reset-password/${resetToken}`;
 
     try {
-      await emailService.sendResetPasswordEmail(user, resetToken, resetUrl);
+      await emailService.sendPasswordResetEmail(user, resetToken, resetUrl);
       res.status(200).json({
         success: true,
         message: "Password reset link has been sent to your email",
       });
     } catch (error) {
+      console.error("Email sending error:", error);
       return res.status(500).json({
         success: false,
-        message: "Error sending email",
+        message: `Error sending email: ${error.message}`,
       });
     }
   } catch (error) {
+    console.error("Forgot password error:", error);
     handleErrorResponse(error, res);
   }
 };
@@ -247,4 +247,22 @@ const handleErrorResponse = (error, res) => {
   res
     .status(500)
     .json({ success: false, message: "Server Error", error: error.message });
+};
+
+exports.testEmail = async (req, res) => {
+  try {
+    // Implement your test email logic here
+    // This could be a simple email send to a predefined address
+    await emailService.sendTestEmail();
+    res.status(200).json({
+      success: true,
+      message: "Test email sent successfully",
+    });
+  } catch (error) {
+    console.error("Test email error:", error);
+    res.status(500).json({
+      success: false,
+      message: `Error sending test email: ${error.message}`,
+    });
+  }
 };
