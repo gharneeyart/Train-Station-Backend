@@ -152,7 +152,7 @@ exports.searchTrains = async (req, res) => {
 
     // Return 200 status with empty array if no trains are available
     if (!availableTrains.length) {
-      return res.status(200).json([]);
+      return res.status(404).json([]);
     }
 
     res.status(200).json(availableTrains);
