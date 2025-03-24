@@ -25,8 +25,8 @@ const PORT = process.env.PORT || 5000;
 
 // CORS setup
 const allowedOrigins = [
-  "http://localhost:5173",
-  "https://train-station-one.vercel.app",
+  "http://localhost:3000",
+  "https://nrc-gray.vercel.app",
 ];
 
 app.use(

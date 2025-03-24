@@ -150,7 +150,7 @@ exports.forgotPassword = async (req, res, next) => {
 };
 
 // @desc    Reset Password
-// @route   PUT /api/v1/auth/reset-password/:resetToken
+// @route   PUT /api/v1/auth/resetpassword/:resetToken
 // @access  Public
 exports.resetPassword = async (req, res) => {
   try {
